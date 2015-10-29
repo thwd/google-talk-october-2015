@@ -1,0 +1,389 @@
+The Go Programming Language
+an Introduction
+
+by Thomas Wilde
+
+me@thwd.me
+
+* Not so long ago, in 2007
+
+.image tpg.png
+
+.caption Griesemer, Pike and Thompson (left to right)
+
+* Dichotomy
+
+Fast to write _or_ fast to execute. Why not both?
+
+.image triangle.png 400 _
+
+* Observations
+
+- Manual memory management is a security risk
+- People want static type checking
+- Inheritance doesn't scale
+- Languages become products in the long run
+- CPUs are shipping with more and more cores
+
+* The Go Programming Language
+
+- Compiled
+- Statically typed
+- Garbage collected
+- No inheritance
+- Structured (packages)
+- Built-in concurrency
+- Simple, small and speedy
+
+* There will be types
+
+A basic function:
+
+    func add(a int, b int) int {
+        return a + b
+    }
+
+Types are written *after* identifiers.
+
+C Code:
+
+    char (*(*x())[])()
+
+"declare x as function returning pointer to array of pointer to function returning char" *
+
+Go Code:
+
+    func x() *[]func() byte
+
+.caption * http://cdecl.org/
+
+* Declare your own types
+
+Basic:
+
+    type MilesPerHour float64
+
+More interesting:
+
+    type Animal struct {
+        Name    string
+        Speed   MilesPerHour
+        Parents [2]Animal
+    }
+
+Even more interesting:
+
+    type Converter interface {
+        Convert([]byte) []byte
+    }
+
+* Predefined types
+
+Inbuilt, named (simple):
+
+- `bool`
+- `byte`, `rune`
+- `string`
+- `error`
+- `float32,` `float64`
+- `int`, `uint`, `uintptr`
+- `int16`, `int32`, `int64`, `int8`, `uint16`, `uint32`, `uint64`, `uint8`
+- `complex128`, `complex64`
+
+.caption we'll look more into `error` later
+
+* Predefined types
+
+Inbuilt, unnamed (composite):
+
+- `*X`
+- `[]X`
+- `[n]X`
+- `map[X]Y`
+- `chan` `X`
+- `struct` `{`X,` `Y,` `...` `}`
+- `func` `(X,` `Y,` `...)` `(Z,` `Q,` `...)`
+- `interface` `{` `M(X)` `Y` ; `N(Z)` `Q` ; `...` `}`
+
+* Maps and slices
+
+Slices are like arrays but grow as needed, bound checked.
+
+    []int
+
+Slice example:
+
+    sc := make([]int, 2)
+    sc[0] = 4
+    sc[1] = 2
+
+Maps are hash-tables (associative arrays)
+
+    map[string]bool
+
+Map example:
+
+    mp := make(map[string]bool)
+    mp["yes"] = true
+    mp["no"] = false
+
+* Named types can have methods
+
+
+    type Person struct {
+        FirstName string
+        LastName  string
+        Age       int
+    }
+
+    func (p Person) FullName() string {
+        return p.FirstName + " " + p.LastName
+    }
+
+Usage example:
+
+    x := Person { "Erlich", "Bachman", 29 }
+
+    n := x.FullName()
+
+    fmt.Println(n) // "Erlich Bachman"
+
+
+* Hello, world!
+
+Go code is organized in packages
+
+    package main
+
+    import (
+        "fmt"
+    )
+
+    func main() {
+        fmt.Println("Hello, world!")
+    }
+
+`fmt` is a package, part of the standard library.
+
+`main` is program entrypoint.
+
+* What's with the capitalization?
+
+Identifiers starting with a capital letter are public / exported:
+
+    type Foo int
+
+    func Hello() { ... }
+
+    const Message = "World"
+
+Identifiers starting with a lower-case letter are private / unexported:
+
+    func ryan() { ... }
+
+    type person struct {
+        name string
+        age  int
+    }
+
+
+* Write a Package
+
+with one type and one method
+
+    package session
+
+    import(
+        "net/http"
+        "time"
+    )
+
+    type SessionIdentifier string
+
+    type Session struct {
+        Id       int
+        Username string
+        Expires  time.Time
+    }
+
+    func InitSession(id SessionIdentifier) Session {
+        //...
+    }
+
+and now, publish it to github
+
+* Import Libraries
+
+Get it:
+
+    $ go get github.com/thwd/session
+
+Use it:
+
+    package main
+
+    import (
+        "fmt"
+        "net/http"
+        "github.com/thwd/session"
+    )
+
+    func HandleHTTPRequest(rw http.ResponseWriter, rq *http.Request) {
+        ck, _ := rq.Cookie("sessionId")
+        sn := session.InitSession(ck.Value)
+        fmt.Fprint(rw, sn.Username)
+    }
+
+* We have explicit pointers
+
+Go is pass-by-value. We have pointers to pass references.
+
+    p := &s
+
+If `s` was of type `string`, then `p` has type `*string`.
+
+Just like in C, except:
+
+- No pointer arithmetic
+- No casting between pointer types
+- `nil` is well-defined
+- No `->` operator, only `.` (dot)
+
+
+All this results in memory-safe pointers.
+
+* We have package "unsafe"
+
+To do funny things with pointers:
+
+- Reinterpret casting
+- Pointer arithmetic
+- Everything else you could do with C
+
+* Polymorphism
+
+No subtyping on concrete types. All types are invariant.
+
+We use interfaces instead:
+
+    type DatabaseAdapter interface {
+        Connect(Config) error
+        Execute(Query) Result
+        Close()
+    }
+
+`error` is a built-in interface:
+
+    type error interface {
+        Error() string
+    }
+
+Anything that has method called `Error()` returning a string can be used as an `error`.
+
+* Interface implementation is implicit
+
+    type ConnectionError struct{}
+
+    func(e ConnectionError) Error() string {
+        return "there was an error establishing a database connection"
+    }
+
+A `DatabaseAdapter` implementation
+
+    type ExampleAdapter map[Query]Result
+
+    func(a ExampleAdapter) Connect(c Config) error {
+        if a == nil {
+            return ConnectionError{}
+        }
+        return nil
+    }
+
+    func (a ExampleAdapter) Execute(q Query) Result {
+        return a[q]
+    }
+
+    func (a ExampleAdapter) Close() {}
+
+
+* Functions are first-class citizens
+
+Lambdas with lexical scoping (closures):
+
+    func QuoteOfTheDay(f func(string)) {
+        f("Testing shows the presence, not the absence of bugs")
+    }
+
+    a := "Edsger Dijkstra"
+
+    p := func(s string) {
+        fmt.Println(s, "-", a)
+    }
+
+    QuoteOfTheDay(p)
+
+The above program prints:
+
+    Testing shows the presence, not the absence of bugs - Edsger Dijkstra
+
+* Concurrency is built-in
+
+Goroutines are light-weight threads, sometimes called "fibers".
+
+The `go` statement:
+
+    func ExecuteJob(j int) {
+        // long running process
+    }
+
+    jobId := 768
+
+    go ExecuteJob(321) // executes in a new goroutine
+
+    fmt.Println("Job", jobId, "is now running.")
+
+`ExecuteJob` is now running in the background. But we don't know when it's finished!
+
+* Channels
+
+Useful for goroutine synchronization.
+
+    func ExecuteJob(j int, d chan bool) {
+        // long running process
+        d <- true
+    }
+
+    jobId, done := 768, make(chan bool)
+
+    go ExecuteJob(321, done) // executes in a new goroutine
+
+    fmt.Println("Job", jobId, "is now running.")
+
+    <-done // blocks until someone writes to the channel
+
+    fmt.Println("Job", jobId, "is now finished.")
+
+Many goroutines can write to a channel concurrently.
+
+Information can be passed through a channel.
+
+* Channels
+
+Useful for load distribution.
+
+.play workers.go /START OMIT/,/END OMIT/
+
+* Resources
+
+- Effective Go:
+.link https://golang.org/doc/effective_go.html
+- Standard Library:
+.link https://golang.org/pkg
+- Go playground:
+.link https://play.golang.org
+- Go Tour
+.link https://tour.golang.org
+
+* Welcome to the gopher club!
+
+.image gopher.png 300 _
