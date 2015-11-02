@@ -338,7 +338,7 @@ The `go` statement:
 
     jobId := 768
 
-    go ExecuteJob(321) // executes in a new goroutine
+    go ExecuteJob(jobId) // executes in a new goroutine
 
     fmt.Println("Job", jobId, "is now running.")
 
@@ -355,7 +355,7 @@ Useful for goroutine synchronization.
 
     jobId, done := 768, make(chan bool)
 
-    go ExecuteJob(321, done) // executes in a new goroutine
+    go ExecuteJob(jobId, done) // executes in a new goroutine
 
     fmt.Println("Job", jobId, "is now running.")
 
