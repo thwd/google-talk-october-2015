@@ -53,7 +53,7 @@ C Code:
 
 Go Code:
 
-    func x() *[]func() byte
+    var x func() *[]func() byte
 
 .caption * http://cdecl.org/
 
